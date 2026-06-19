@@ -1,0 +1,29 @@
+{
+  "name": "clauncher",
+  "version": "0.0.1",
+  "description": "claude CLI 런처 — 저장한 model/mode/effort 를 얹어 claude 를 실행한다",
+  "type": "module",
+  "bin": {
+    "clauncher": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "claude",
+    "cli",
+    "launcher"
+  ],
+  "license": "MIT",
+  "author": "JeongUk Park",
+  "dependencies": {
+    "@inquirer/prompts": "^7.0.0"
+  }
+}
