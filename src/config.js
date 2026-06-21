@@ -1,0 +1,164 @@
+// clauncher 설정 모듈
+// 설정파일 경로 해석, 로드/저장, 기본값 생성, 스키마 검증을 담당한다.
+// 설계 문서: docs/specs/2026-06-19-clauncher-design.md (4·5·7절)
+
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+// selection 의 단계 순서. 메뉴 표시·플래그 조립·검증이 모두 이 순서를 공유한다.
+export const SELECTION_STEPS = ['mode', 'model', 'effort'];
+
+/**
+ * 설계 문서 4절 스키마를 그대로 담은 기본 config 를 생성한다.
+ * 호출할 때마다 새 객체를 반환해 호출부의 변형이 서로 영향을 주지 않게 한다.
+ */
+export function defaultConfig() {
+  return {
+    version: 1,
+    options: {
+      mode: [
+        { label: 'Default', flag: 'default' },
+        { label: 'Auto', flag: 'auto' },
+        { label: 'Plan', flag: 'plan' },
+        { label: 'Accept Edits', flag: 'acceptEdits' },
+        { label: 'Bypass Permissions', flag: 'bypassPermissions' },
+        { label: "Don't Ask", flag: 'dontAsk' },
+      ],
+      model: [
+        { label: '(claude 기본)', flag: null },
+        { label: 'Opus', flag: 'opus' },
+        { label: 'Sonnet', flag: 'sonnet' },
+        { label: 'Haiku', flag: 'haiku' },
+        { label: 'Fable', flag: 'fable' },
+      ],
+      effort: [
+        { label: '(claude 기본)', flag: null },
+        { label: 'low', flag: 'low' },
+        { label: 'medium', flag: 'medium' },
+        { label: 'high', flag: 'high' },
+        { label: 'xhigh', flag: 'xhigh' },
+        { label: 'max', flag: 'max' },
+      ],
+    },
+    selection: {
+      mode: 'default',
+      model: 'opus',
+      effort: 'high',
+    },
+  };
+}
+
+/**
+ * 설정파일의 절대 경로를 해석한다 (XDG Base Directory 기준).
+ * `$XDG_CONFIG_HOME` 가 비어있지 않으면 그쪽을, 아니면 `~/.config` 를 base 로 쓴다.
+ * env·homedir 를 주입받아 순수하게 동작한다(테스트 용이).
+ */
+export function resolveConfigPath({ env = process.env, homedir = os.homedir() } = {}) {
+  const xdg = env.XDG_CONFIG_HOME;
+  const base = xdg ? xdg : path.join(homedir, '.config');
+  return path.join(base, 'clauncher', 'config.json');
+}
+
+/**
+ * selection 의 각 단계 값이 해당 options 의 flag 중에 존재하는지 검증한다.
+ * 무효한 단계(재선택이 필요한 단계)의 배열을 반환한다 — 전부 유효하면 빈 배열.
+ * selection 통째 누락은 모든 단계가 무효가 되어 "최초 실행"과 같은 신호가 된다.
+ * flag 가 null 인 항목(claude 기본)은 selection 값이 null 일 때 유효로 인정한다.
+ */
+export function validateSelection(config) {
+  const options = config?.options ?? {};
+  const selection = config?.selection ?? {};
+
+  return SELECTION_STEPS.filter((step) => {
+    const opts = options[step];
+    if (!Array.isArray(opts)) return true;
+    return !opts.some((opt) => opt.flag === selection[step]);
+  });
+}
+
+/**
+ * JSON 텍스트를 config 객체로 파싱한다.
+ * 파싱 실패(손상)나 객체가 아닌 값(숫자·문자열·배열·null)이면 null 을 반환해
+ * 호출부(load)가 "손상 → 기본값 재생성" 으로 분기하게 한다.
+ */
+export function parseConfig(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null;
+  }
+
+  return parsed;
+}
+
+/**
+ * 기존 config 의 selection 만 newSelection 으로 머지한 새 config 를 반환한다.
+ * 사용자가 손으로 편집한 options 는 그대로 보존하고, 원본 config 는 변형하지 않는다.
+ * 부분 selection 을 주면 나머지 단계는 기존 값을 유지한다(일부 단계만 재선택 케이스).
+ */
+export function mergeSelection(config, newSelection) {
+  return {
+    ...config,
+    selection: { ...config.selection, ...newSelection },
+  };
+}
+
+// config 를 파일에 쓸 문자열로 직렬화한다(사람이 편집하기 좋게 2칸 들여쓰기 + 후행 개행).
+function serialize(config) {
+  return `${JSON.stringify(config, null, 2)}\n`;
+}
+
+/**
+ * 설정파일을 읽어 { config, invalidSteps } 를 반환한다.
+ * - 파일 없음: 최초 실행으로 간주 — 기본 config 와 전체 단계 재선택 신호.
+ * - 손상(JSON 파싱 실패): 기본값으로 재생성하고 전체 단계 재선택 신호.
+ * - 정상: 파싱한 config 와 validateSelection 결과(누락=전체, 일부 무효=해당 단계).
+ * config.options 는 항상 메뉴를 띄울 수 있도록 채워서 반환한다.
+ * ENOENT 외 I/O 오류는 호출부가 처리하도록 그대로 던진다.
+ */
+export async function load({ configPath = resolveConfigPath() } = {}) {
+  let raw;
+  try {
+    raw = await fs.readFile(configPath, 'utf8');
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return { config: defaultConfig(), invalidSteps: [...SELECTION_STEPS] };
+    }
+    throw err;
+  }
+
+  const parsed = parseConfig(raw);
+  if (parsed === null) {
+    const config = defaultConfig();
+    await fs.writeFile(configPath, serialize(config));
+    return { config, invalidSteps: [...SELECTION_STEPS] };
+  }
+
+  return { config: parsed, invalidSteps: validateSelection(parsed) };
+}
+
+/**
+ * selection 만 갱신해 설정파일에 저장한다(사용자가 편집한 options 는 보존).
+ * 기존 파일이 없거나 손상됐으면 기본 config 를 base 로 삼아 머지한다.
+ * 설정 디렉토리가 없으면 생성한다(최초 실행 대비). 저장한 config 를 반환한다.
+ */
+export async function save(selection, { configPath = resolveConfigPath() } = {}) {
+  let base;
+  try {
+    base = parseConfig(await fs.readFile(configPath, 'utf8')) ?? defaultConfig();
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+    base = defaultConfig();
+  }
+
+  const config = mergeSelection(base, selection);
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+  await fs.writeFile(configPath, serialize(config));
+  return config;
+}
