@@ -1,6 +1,6 @@
 {
   "name": "clauncher",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "claude CLI 런처 — 저장한 model/mode/effort 를 얹어 claude 를 실행한다",
   "type": "module",
   "bin": {
