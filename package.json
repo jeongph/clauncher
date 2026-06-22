@@ -8,7 +8,8 @@
   },
   "files": [
     "bin",
-    "src"
+    "src/*.js",
+    "!src/*.test.js"
   ],
   "scripts": {
     "test": "node --test"
