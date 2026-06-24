@@ -32,7 +32,7 @@ npm install            # @inquirer/prompts 설치
 - **B 통합**: worktree 브랜치 push → `gh pr create` → PR 즉시 머지(main).
 - **C 릴리즈**: version 0.1.0, `gh release create v0.1.0` → `npm i -g github:jeongph/clauncher` 가능.
 - **D Docker 스모크**: `test/docker-smoke.sh` (main push 후 실행) — 플래그 전달 + ENOENT(127) 검증.
-- **E npm publish**: 사용자 `npm login`(OTP) 후 `npm publish`. 패키지명 `clauncher` 미선점.
+- **E npm publish**: GitHub Actions 자동배포(`.github/workflows/npm-publish.yml`). `NPM_TOKEN` secret 등록 후 release 발행/`workflow_dispatch` 로 트리거. 상세 절차: 이슈 #3.
 
 ## 예정
 
