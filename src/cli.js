@@ -1,5 +1,5 @@
 // clauncher 오케스트레이션
-// 인자 파싱 → config 분기 → 로드/메뉴/저장/플래그조립/실행을 엮는다(설계 3절 플로우).
+// 인자 파싱 → config 분기 → 로드/메뉴/저장/플래그조립/실행을 엮는다.
 // 부수효과 의존성을 주입 가능하게 하여 흐름을 단위 테스트한다.
 
 import { load, save, SELECTION_STEPS } from './config.js';

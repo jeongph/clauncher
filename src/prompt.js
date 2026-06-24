@@ -1,6 +1,6 @@
 // clauncher 메뉴 모듈
 // @inquirer/prompts 의 select 로 mode→model→effort 3단계를 표시한다.
-// 로직은 config/launch 에 두고 이 파일은 얇게 유지한다(설계 6절).
+// 로직은 config/launch 에 두고 이 파일은 얇게 유지한다.
 
 import { select } from '@inquirer/prompts';
 

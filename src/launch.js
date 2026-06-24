@@ -1,6 +1,5 @@
 // clauncher 실행 모듈
 // selection → claude 플래그 배열 조립(순수), claude 프로세스 spawn(부수효과)을 담당한다.
-// 설계 문서: docs/specs/2026-06-19-clauncher-design.md (5절)
 
 import { spawn } from 'node:child_process';
 
