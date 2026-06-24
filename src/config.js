@@ -1,6 +1,5 @@
 // clauncher 설정 모듈
 // 설정파일 경로 해석, 로드/저장, 기본값 생성, 스키마 검증을 담당한다.
-// 설계 문서: docs/specs/2026-06-19-clauncher-design.md (4·5·7절)
 
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -10,7 +9,7 @@ import path from 'node:path';
 export const SELECTION_STEPS = ['mode', 'model', 'effort'];
 
 /**
- * 설계 문서 4절 스키마를 그대로 담은 기본 config 를 생성한다.
+ * 기본 옵션 목록과 선택값을 담은 config 를 생성한다.
  * 호출할 때마다 새 객체를 반환해 호출부의 변형이 서로 영향을 주지 않게 한다.
  */
 export function defaultConfig() {
